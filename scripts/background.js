@@ -167,22 +167,34 @@ function initializeInstallId() {
 }
 
 // Firebase SDK 로드
-importScripts('../firebase/firebase-app.js', '../firebase/firebase-firestore.js');
+// importScripts('../firebase/firebase-app.js', '../firebase/firebase-firestore.js');
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics.js";
+
+// import { initializeApp } from '../firebase/firebase-app.js';
+// import { getFirestore } from '../firebase/firebase-firestore.js';
+// import { getAnalytics } from '../firebase/firebase-analytics.js';
 
 // Firebase 설정 가져오기
-import firebaseConfig from './config.js';
+import { firebaseConfig } from './config.js';
+
+// importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js');
+// importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js');
+// importScripts('./config.js');
+// const firebaseConfig = firebaseConfigDefault;
 
 // Firebase 초기화
-firebase.initializeApp(firebaseConfig);
+const app = initializeApp(firebaseConfig);
 
-// Firestore 초기화
-const db = firebase.firestore();
+const db = getFirestore(app);
 
 // actionLog를 Firestore에 저장하는 함수
 function saveActionLogToFirestore(action, installId) {
-  db.collection('actionLogs').add({
+  const actionLogRef = collection(db, 'actionLogs');
+  addDoc(actionLogRef, {
     action: action,
-    time: firebase.firestore.FieldValue.serverTimestamp(),
+    time: serverTimestamp(),
     installId: installId
   })
   .then((docRef) => {
