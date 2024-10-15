@@ -42,9 +42,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       incrementClicks();
       break;
     case 'incrementScrolls':
+      console.log('incrementScrolls');
       incrementScrolls();
       break;
     case 'incrementCopyActions':
+      console.log('incrementCopyActions');
       incrementCopyActions();
       break;
     case 'incrementPasteActions':
@@ -61,8 +63,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 // 클릭 수 증가
 function incrementClicks() {
-  chrome.storage.local.get(['clicks', 'installId'], (data) => {
-    chrome.storage.local.set({ clicks: data.clicks + 1 });
+  chrome.storage.local.get(['clicks', 'actionLog', 'installId'], (data) => {
+    const newLog = [...data.actionLog, { action: 'click', time: new Date().toISOString(), installId: data.installId }];
+    chrome.storage.local.set({ clicks: data.clicks + 1, actionLog: newLog });
     saveActionLogToFirestore('click', data.installId);
   });
 }

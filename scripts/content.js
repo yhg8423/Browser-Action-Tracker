@@ -6,15 +6,21 @@ document.addEventListener('paste', () => sendMessage('incrementPasteActions'));
 document.addEventListener('cut', () => sendMessage('incrementCutActions'));
 
 // 메시지 전송 함수
+// function sendMessage(action) {
+//   if (chrome.runtime && chrome.runtime.sendMessage) {
+//     chrome.runtime.sendMessage({ action: action }, response => {
+//       if (chrome.runtime.lastError) {
+//         console.error('메시지 전송 오류:', chrome.runtime.lastError);
+//       }
+//     });
+//   }
+// }
+
 function sendMessage(action) {
-  if (chrome.runtime && chrome.runtime.sendMessage) {
     chrome.runtime.sendMessage({ action: action }, response => {
-      if (chrome.runtime.lastError) {
-        console.error('메시지 전송 오류:', chrome.runtime.lastError);
-      }
     });
-  }
 }
+
 
 // 페이지 로드 시 초기화 및 메시지 전송
 chrome.runtime.sendMessage({ action: 'getStats' }, response => {
