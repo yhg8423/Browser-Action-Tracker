@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>브라우저 액션 트래커</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            width: 300px;
+        }
+        h1 {
+            font-size: 20px;
+            margin-bottom: 15px;
+        }
+        p {
+            font-size: 14px;
+            margin: 8px 0;
+        }
+        button {
+            margin-top: 15px;
+            padding: 8px 15px;
+            font-size: 14px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>브라우저 액션 트래커</h1>
+    <p id="clicks">클릭: 0</p>
+    <p id="scrolls">스크롤: 0</p>
+    <p id="tabSwitches">탭 전환: 0</p>
+    <p id="openTabs">열린 탭: 0</p>
+    <p id="copyActions">복사: 0</p>
+    <p id="pasteActions">붙여넣기: 0</p>
+    <p id="cutActions">잘라내기: 0</p>
+    <button id="resetButton">통계 초기화</button>
+
+    <script src="popup.js"></script>
+</body>
+</html>

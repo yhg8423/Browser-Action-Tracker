@@ -1,0 +1,33 @@
+{
+    "name": "Browser-Action-Tracker",
+    "version": "1.0",
+    "description": "A browser extension that logs the current tab, clicks, scrolls, tab switches, number of tabs, and clipboard actions in real-time",
+    "manifest_version": 3,
+    "background": {
+        "service_worker": "scripts/background.js"
+    },
+    "content_scripts": [{
+        "matches": ["<all_urls>"],
+        "js": ["scripts/content.js"]
+    }],
+    "permissions": [
+        "storage",
+        "tabs",
+        "activeTab",
+        "clipboardRead"
+    ],
+    "action": {    
+        "default_popup": "src/extension/popup.html"  
+    },
+    "content_security_policy": {
+        "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com;"
+    },
+    "web_accessible_resources": [{
+        "resources": [
+            "firebase/firebase-app.js",
+            "firebase/firebase-analytics.js",
+            "firebase/firebase-firestore.js"
+        ],
+        "matches": ["<all_urls>"]
+    }]
+}
