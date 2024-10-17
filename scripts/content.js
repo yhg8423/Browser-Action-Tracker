@@ -1,5 +1,11 @@
 // 이벤트 리스너 설정
-document.addEventListener('click', () => sendMessage('incrementClicks'));
+document.addEventListener('click', (event) => {
+  if (event.button === 0) {
+    sendMessage('incrementLeftClicks');
+  } else if (event.button === 2) {
+    sendMessage('incrementRightClicks');
+  }
+});
 document.addEventListener('scroll', () => sendMessage('incrementScrolls'));
 document.addEventListener('copy', () => sendMessage('incrementCopyActions'));
 document.addEventListener('paste', () => sendMessage('incrementPasteActions'));

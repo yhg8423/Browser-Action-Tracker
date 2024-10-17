@@ -1,6 +1,7 @@
 // 초기 상태 설정
 const initialState = {
-  clicks: 0,
+  leftClicks: 0,
+  rightClicks: 0,
   scrolls: 0,
   tabSwitches: 0,
   activeTab: null,
@@ -40,8 +41,11 @@ chrome.tabs.onRemoved.addListener(() => {
 // 클립보드 작업을 감지하기 위해 콘텐츠 스크립트에서 메시지를 받음
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   switch (request.action) {
-    case 'incrementClicks':
-      incrementClicks();
+    case 'incrementLeftClicks':
+      incrementLeftClicks();
+      break;
+    case 'incrementRightClicks':
+      incrementRightClicks();
       break;
     case 'incrementScrolls':
       incrementScrolls();
@@ -61,12 +65,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
-// 클릭 수 증가
-function incrementClicks() {
-  chrome.storage.local.get(['clicks', 'actionLog', 'installId'], (data) => {
-    const newLog = [...data.actionLog, { action: 'click', time: new Date().toISOString(), installId: data.installId }];
-    chrome.storage.local.set({ clicks: data.clicks + 1, actionLog: newLog });
-    addToLocalLog('click', data.installId);
+// 왼쪽 클릭 수 증가
+function incrementLeftClicks() {
+  chrome.storage.local.get(['leftClicks', 'actionLog', 'installId'], (data) => {
+    const newLog = [...data.actionLog, { action: 'leftClick', time: new Date().toISOString(), installId: data.installId }];
+    chrome.storage.local.set({ leftClicks: data.leftClicks + 1, actionLog: newLog });
+    addToLocalLog('leftClick', data.installId);
+  });
+}
+
+// 오른쪽 클릭 수 증가
+function incrementRightClicks() {
+  chrome.storage.local.get(['rightClicks', 'actionLog', 'installId'], (data) => {
+    const newLog = [...data.actionLog, { action: 'rightClick', time: new Date().toISOString(), installId: data.installId }];
+    chrome.storage.local.set({ rightClicks: data.rightClicks + 1, actionLog: newLog });
+    addToLocalLog('rightClick', data.installId);
   });
 }
 
