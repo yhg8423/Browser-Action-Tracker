@@ -27,6 +27,28 @@ const initialState = {
 let localActionLog = [];
 let isSaving = false; // 저장 중인지 확인하는 플래그
 
+// 액션 로그 업데이트 큐
+let isActionLogUpdating = false;
+const actionLogQueue = [];
+
+// 큐에 액션 추가
+function enqueueActionLogUpdate(operation) {
+  actionLogQueue.push(operation);
+  processActionLogQueue();
+}
+
+// 큐 처리 함수
+function processActionLogQueue() {
+  if (isActionLogUpdating || actionLogQueue.length === 0) return;
+
+  isActionLogUpdating = true;
+  const operation = actionLogQueue.shift();
+  operation(() => {
+    isActionLogUpdating = false;
+    processActionLogQueue();
+  });
+}
+
 // 상태 초기화
 chrome.runtime.onInstalled.addListener(() => {
   initializeInstallId();
@@ -122,22 +144,36 @@ function extractDomain(url) {
   }
 }
 
-// 각 액션에 대한 증가 함수
-function incrementAction(actionType) {
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    const domain = extractDomain(tabs[0].url);
+// 액션 로그 안전하게 업데이트하는 함수
+function safeUpdateActionLog(actionType, domain) {
+  enqueueActionLogUpdate((done) => {
     chrome.storage.local.get([actionType, 'actionLog', 'installId'], (data) => {
-      const newLog = [...data.actionLog, { action: actionType, time: new Date().toISOString(), installId: data.installId, domain }];
+      const newLogEntry = {
+        action: actionType,
+        time: new Date().toISOString(),
+        installId: data.installId,
+        domain: domain
+      };
+      const updatedActionLog = data.actionLog ? [...data.actionLog, newLogEntry] : [newLogEntry];
       const newData = {};
       newData[actionType] = (data[actionType] || 0) + 1;
-      newData.actionLog = newLog;
-      chrome.storage.local.set(newData);
-      addToLocalLog(actionType, data.installId, domain);
+      newData.actionLog = updatedActionLog;
+      chrome.storage.local.set(newData, () => {
+        addToLocalLog(actionType, data.installId, domain);
+        done();
+      });
     });
   });
 }
 
-// 각 액션에 대한 함수 정의
+// 각 액션에 대한 증가 함수
+function incrementAction(actionType) {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const domain = extractDomain(tabs[0]?.url || '');
+    safeUpdateActionLog(actionType, domain);
+  });
+}
+
 const incrementLeftClicks = () => incrementAction('leftClicks');
 const incrementRightClicks = () => incrementAction('rightClicks');
 const incrementScrolls = () => incrementAction('scrolls');
@@ -158,47 +194,88 @@ const incrementWheelClicks = () => incrementAction('wheelClicks'); // wheelclick
 
 function incrementTabSwitches() {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    const domain = extractDomain(tabs[0].url);
-    chrome.storage.local.get(['tabSwitches', 'actionLog', 'installId'], (data) => {
-      const newLog = [...data.actionLog, { action: 'tabSwitch', time: new Date().toISOString(), installId: data.installId, domain }];
-      chrome.storage.local.set({ tabSwitches: data.tabSwitches + 1, actionLog: newLog });
-      addToLocalLog('tabSwitch', data.installId, domain);
+    const domain = extractDomain(tabs[0]?.url || '');
+    enqueueActionLogUpdate((done) => {
+      chrome.storage.local.get(['tabSwitches', 'actionLog', 'installId'], (data) => {
+        const newLogEntry = {
+          action: 'tabSwitch',
+          time: new Date().toISOString(),
+          installId: data.installId,
+          domain: domain
+        };
+        const updatedActionLog = data.actionLog ? [...data.actionLog, newLogEntry] : [newLogEntry];
+        const newData = {
+          tabSwitches: (data.tabSwitches || 0) + 1,
+          actionLog: updatedActionLog
+        };
+        chrome.storage.local.set(newData, () => {
+          addToLocalLog('tabSwitch', data.installId, domain);
+          done();
+        });
+      });
     });
   });
 }
 
 function updateActiveTab(tabId) {
   chrome.tabs.get(tabId, (tab) => {
-    const domain = extractDomain(tab.url);
-    chrome.storage.local.get(['actionLog', 'installId'], (data) => {
-      const newLog = [...data.actionLog, { action: 'updateActiveTab', time: new Date().toISOString(), installId: data.installId, domain }];
-      chrome.storage.local.set({ activeTab: tabId, actionLog: newLog });
-      addToLocalLog('updateActiveTab', data.installId, domain);
+    const domain = extractDomain(tab?.url || '');
+    enqueueActionLogUpdate((done) => {
+      chrome.storage.local.get(['actionLog', 'installId'], (data) => {
+        const newLogEntry = {
+          action: 'updateActiveTab',
+          time: new Date().toISOString(),
+          installId: data.installId,
+          domain: domain
+        };
+        const updatedActionLog = data.actionLog ? [...data.actionLog, newLogEntry] : [newLogEntry];
+        chrome.storage.local.set({ activeTab: tabId, actionLog: updatedActionLog }, () => {
+          addToLocalLog('updateActiveTab', data.installId, domain);
+          done();
+        });
+      });
     });
   });
 }
 
 function incrementOpenTabs() {
   console.log('탭 생성');
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    const domain = extractDomain(tabs[0].url);
+  enqueueActionLogUpdate((done) => {
     chrome.storage.local.get(['openTabs', 'actionLog', 'installId'], (data) => {
-      const newLog = [...data.actionLog, { action: 'openTab', time: new Date().toISOString(), installId: data.installId, domain }];
-      chrome.storage.local.set({ openTabs: data.openTabs + 1, actionLog: newLog });
-      addToLocalLog('openTab', data.installId, domain);
+      const newOpenTabs = (data.openTabs || 0) + 1;
+      console.log('newOpenTabs');
+      const newLogEntry = {
+        action: 'openTab',
+        time: new Date().toISOString(),
+        installId: data.installId,
+        domain: 'unknown'
+      };
+      const updatedActionLog = data.actionLog ? [...data.actionLog, newLogEntry] : [newLogEntry];
+      chrome.storage.local.set({ openTabs: newOpenTabs, actionLog: updatedActionLog }, () => {
+        addToLocalLog('openTab', data.installId, 'unknown');
+        done();
+      });
     });
   });
 }
 
 function decrementOpenTabs() {
   console.log('탭 삭제');
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    const domain = extractDomain(tabs[0].url);
+  enqueueActionLogUpdate((done) => {
     chrome.storage.local.get(['openTabs', 'actionLog', 'installId'], (data) => {
-      const newOpenTabs = Math.max(0, data.openTabs - 1); // 탭 수를 1 감소시키되 0 미만으로 내려가지 않도록 함
-      const newLog = [...data.actionLog, { action: 'closeTab', time: new Date().toISOString(), installId: data.installId, domain }];
-      chrome.storage.local.set({ openTabs: newOpenTabs, actionLog: newLog }); 
-      addToLocalLog('closeTab', data.installId, domain);
+      const newOpenTabs = Math.max(0, (data.openTabs || 0) - 1);
+      console.log('newOpenTabs');
+      const newLogEntry = {
+        action: 'closeTab',
+        time: new Date().toISOString(),
+        installId: data.installId,
+        domain: 'unknown'
+      };
+      const updatedActionLog = data.actionLog ? [...data.actionLog, newLogEntry] : [newLogEntry];
+      chrome.storage.local.set({ openTabs: newOpenTabs, actionLog: updatedActionLog }, () => {
+        addToLocalLog('closeTab', data.installId, 'unknown');
+        done();
+      });
     });
   });
 }
@@ -295,3 +372,4 @@ chrome.runtime.onSuspend.addListener(() => {
     saveLogsToFirestore();
   }
 });
+
