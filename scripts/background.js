@@ -9,6 +9,15 @@ const initialState = {
   copyActions: 0,
   pasteActions: 0,
   cutActions: 0,
+  dragActions: 0,
+  dropActions: 0,
+  doubleClicks: 0,
+  keyboardInputs: 0,
+  formSubmits: 0,
+  linkClicks: 0,
+  historyNavigations: 0,
+  zoomIns: 0,
+  zoomOuts: 0,
   installId: null,
   actionLog: [] // 액션 로그 추가
 };
@@ -59,92 +68,120 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     case 'incrementCutActions':
       incrementCutActions();
       break;
+    case 'incrementDragActions':
+      incrementDragActions();
+      break;
+    case 'incrementDropActions':
+      incrementDropActions();
+      break;
+    case 'incrementDoubleClicks':
+      incrementDoubleClicks();
+      break;
+    case 'incrementKeyboardInputs':
+      incrementKeyboardInputs();
+      break;
+    case 'incrementFormSubmits':
+      incrementFormSubmits();
+      break;
+    case 'incrementLinkClicks':
+      incrementLinkClicks();
+      break;
+    case 'incrementHistoryNavigations':
+      incrementHistoryNavigations();
+      break;
+    case 'incrementZoomIns':
+      incrementZoomIns();
+      break;
+    case 'incrementZoomOuts':
+      incrementZoomOuts();
+      break;
     case 'getStats':
       getStats(sendResponse);
       return true; // 비동기 응답을 위해 true 반환
   }
 });
 
-// 왼쪽 클릭 수 증가
-function incrementLeftClicks() {
-  chrome.storage.local.get(['leftClicks', 'actionLog', 'installId'], (data) => {
-    const newLog = [...data.actionLog, { action: 'leftClick', time: new Date().toISOString(), installId: data.installId }];
-    chrome.storage.local.set({ leftClicks: data.leftClicks + 1, actionLog: newLog });
-    addToLocalLog('leftClick', data.installId);
+// 도메인 추출 함수
+function extractDomain(url) {
+  const domain = (new URL(url)).hostname;
+  const parts = domain.split('.').slice(-3);
+  if (parts[0] === 'www') parts.shift();
+  return parts.join('.');
+}
+
+// 각 액션에 대한 증가 함수
+function incrementAction(actionType) {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const domain = extractDomain(tabs[0].url);
+    chrome.storage.local.get([actionType, 'actionLog', 'installId'], (data) => {
+      const newLog = [...data.actionLog, { action: actionType, time: new Date().toISOString(), installId: data.installId, domain }];
+      const newData = {};
+      newData[actionType] = (data[actionType] || 0) + 1;
+      newData.actionLog = newLog;
+      chrome.storage.local.set(newData);
+      addToLocalLog(actionType, data.installId, domain);
+    });
   });
 }
 
-// 오른쪽 클릭 수 증가
-function incrementRightClicks() {
-  chrome.storage.local.get(['rightClicks', 'actionLog', 'installId'], (data) => {
-    const newLog = [...data.actionLog, { action: 'rightClick', time: new Date().toISOString(), installId: data.installId }];
-    chrome.storage.local.set({ rightClicks: data.rightClicks + 1, actionLog: newLog });
-    addToLocalLog('rightClick', data.installId);
-  });
-}
-
-function incrementScrolls() {
-  chrome.storage.local.get(['scrolls', 'actionLog', 'installId'], (data) => {
-    const newLog = [...data.actionLog, { action: 'scroll', time: new Date().toISOString(), installId: data.installId }];
-    chrome.storage.local.set({ scrolls: data.scrolls + 1, actionLog: newLog });
-    addToLocalLog('scroll', data.installId);
-  });
-}
+// 각 액션에 대한 함수 정의
+const incrementLeftClicks = () => incrementAction('leftClicks');
+const incrementRightClicks = () => incrementAction('rightClicks');
+const incrementScrolls = () => incrementAction('scrolls');
+const incrementCopyActions = () => incrementAction('copyActions');
+const incrementPasteActions = () => incrementAction('pasteActions');
+const incrementCutActions = () => incrementAction('cutActions');
+const incrementDragActions = () => incrementAction('dragActions');
+const incrementDropActions = () => incrementAction('dropActions');
+const incrementDoubleClicks = () => incrementAction('doubleClicks');
+const incrementKeyboardInputs = () => incrementAction('keyboardInputs');
+const incrementFormSubmits = () => incrementAction('formSubmits');
+const incrementLinkClicks = () => incrementAction('linkClicks');
+const incrementHistoryNavigations = () => incrementAction('historyNavigations');
+const incrementZoomIns = () => incrementAction('zoomIns');
+const incrementZoomOuts = () => incrementAction('zoomOuts');
 
 function incrementTabSwitches() {
-  chrome.storage.local.get(['tabSwitches', 'actionLog', 'installId'], (data) => {
-    const newLog = [...data.actionLog, { action: 'tabSwitch', time: new Date().toISOString(), installId: data.installId }];
-    chrome.storage.local.set({ tabSwitches: data.tabSwitches + 1, actionLog: newLog });
-    addToLocalLog('tabSwitch', data.installId);
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const domain = extractDomain(tabs[0].url);
+    chrome.storage.local.get(['tabSwitches', 'actionLog', 'installId'], (data) => {
+      const newLog = [...data.actionLog, { action: 'tabSwitch', time: new Date().toISOString(), installId: data.installId, domain }];
+      chrome.storage.local.set({ tabSwitches: data.tabSwitches + 1, actionLog: newLog });
+      addToLocalLog('tabSwitch', data.installId, domain);
+    });
   });
 }
 
 function updateActiveTab(tabId) {
-  chrome.storage.local.get(['actionLog', 'installId'], (data) => {
-    const newLog = [...data.actionLog, { action: 'updateActiveTab', time: new Date().toISOString(), installId: data.installId }];
-    chrome.storage.local.set({ activeTab: tabId, actionLog: newLog });
-    addToLocalLog('updateActiveTab', data.installId);
+  chrome.tabs.get(tabId, (tab) => {
+    const domain = extractDomain(tab.url);
+    chrome.storage.local.get(['actionLog', 'installId'], (data) => {
+      const newLog = [...data.actionLog, { action: 'updateActiveTab', time: new Date().toISOString(), installId: data.installId, domain }];
+      chrome.storage.local.set({ activeTab: tabId, actionLog: newLog });
+      addToLocalLog('updateActiveTab', data.installId, domain);
+    });
   });
 }
 
 function incrementOpenTabs() {
-  chrome.storage.local.get(['openTabs', 'actionLog', 'installId'], (data) => {
-    const newLog = [...data.actionLog, { action: 'openTab', time: new Date().toISOString(), installId: data.installId }];
-    chrome.storage.local.set({ openTabs: data.openTabs + 1, actionLog: newLog });
-    addToLocalLog('openTab', data.installId);
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const domain = extractDomain(tabs[0].url);
+    chrome.storage.local.get(['openTabs', 'actionLog', 'installId'], (data) => {
+      const newLog = [...data.actionLog, { action: 'openTab', time: new Date().toISOString(), installId: data.installId, domain }];
+      chrome.storage.local.set({ openTabs: data.openTabs + 1, actionLog: newLog });
+      addToLocalLog('openTab', data.installId, domain);
+    });
   });
 }
 
 function decrementOpenTabs() {
-  chrome.storage.local.get(['openTabs', 'actionLog', 'installId'], (data) => {
-    const newLog = [...data.actionLog, { action: 'closeTab', time: new Date().toISOString(), installId: data.installId }];
-    // chrome.storage.local.set({ openTabs: Math.max(0, data.openTabs - 1), actionLog: newLog });
-    chrome.storage.local.set({ actionLog: newLog }); // 탭이 새로 열린 횟수를 체크하기 위해 감소하지 않음.
-    addToLocalLog('closeTab', data.installId);
-  });
-}
-
-function incrementCopyActions() {
-  chrome.storage.local.get(['copyActions', 'actionLog', 'installId'], (data) => {
-    const newLog = [...data.actionLog, { action: 'copy', time: new Date().toISOString(), installId: data.installId }];
-    chrome.storage.local.set({ copyActions: data.copyActions + 1, actionLog: newLog });
-    addToLocalLog('copy', data.installId);
-  });
-}
-
-function incrementPasteActions() {
-  chrome.storage.local.get(['pasteActions', 'actionLog', 'installId'], (data) => {
-    const newLog = [...data.actionLog, { action: 'paste', time: new Date().toISOString(), installId: data.installId }];
-    chrome.storage.local.set({ pasteActions: data.pasteActions + 1, actionLog: newLog });
-    addToLocalLog('paste', data.installId);
-  });
-}
-
-function incrementCutActions() {
-  chrome.storage.local.get(['cutActions', 'actionLog', 'installId'], (data) => {
-    const newLog = [...data.actionLog, { action: 'cut', time: new Date().toISOString(), installId: data.installId }];
-    chrome.storage.local.set({ cutActions: data.cutActions + 1, actionLog: newLog });
-    addToLocalLog('cut', data.installId);
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const domain = extractDomain(tabs[0].url);
+    chrome.storage.local.get(['openTabs', 'actionLog', 'installId'], (data) => {
+      const newLog = [...data.actionLog, { action: 'closeTab', time: new Date().toISOString(), installId: data.installId, domain }];
+      chrome.storage.local.set({ actionLog: newLog }); // 탭이 새로 열린 횟수를 체크하기 위해 감소하지 않음.
+      addToLocalLog('closeTab', data.installId, domain);
+    });
   });
 }
 
@@ -181,50 +218,24 @@ function initializeInstallId() {
 }
 
 // Firebase SDK 로드
-// importScripts('../firebase/firebase-app.js', '../firebase/firebase-firestore.js');
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-analytics.js";
 
-// import { initializeApp } from '../firebase/firebase-app.js';
-// import { getFirestore } from '../firebase/firebase-firestore.js';
-// import { getAnalytics } from '../firebase/firebase-analytics.js';
-
 // Firebase 설정 가져오기
 import { firebaseConfig } from './config.js';
-
-// importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js');
-// importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js');
-// importScripts('./config.js');
-// const firebaseConfig = firebaseConfigDefault;
 
 // Firebase 초기화
 const app = initializeApp(firebaseConfig);
 
 const db = getFirestore(app);
 
-// actionLog를 Firestore에 저장하는 함수
-// function saveActionLogToFirestore(action, installId) {
-//   const actionLogRef = collection(db, 'actionLogs');
-//   addDoc(actionLogRef, {
-//     action: action,
-//     time: serverTimestamp(),
-//     installId: installId
-//   })
-//   .then((docRef) => {
-//     console.log("Document written with ID: ", docRef.id);
-//   })
-//   .catch((error) => {
-//     console.error("Error adding document: ", error);
-//   });
-// }
-
 // 로컬에 로그 추가
-function addToLocalLog(action, installId) {
-  localActionLog.push({ action, time: new Date().toISOString(), installId });
+function addToLocalLog(action, installId, domain) {
+  localActionLog.push({ action, time: new Date().toISOString(), installId, domain });
 
-  // 로그가 10개 이상 쌓이면 Firestore에 저장
-  if (localActionLog.length >= 10) {
+  // 로그가 100개 이상 쌓이면 Firestore에 저장
+  if (localActionLog.length >= 100) {
     saveLogsToFirestore();
   }
 }
