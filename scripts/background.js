@@ -62,14 +62,20 @@ chrome.tabs.onActivated.addListener((activeInfo) => {
   updateActiveTab(activeInfo.tabId);
 });
 
+var tabToUrl = {};
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    tabToUrl[tabId] = tab.url;
+});
+
 // 탭 생성 감지
-chrome.tabs.onCreated.addListener(() => {
-  incrementOpenTabs();
+chrome.tabs.onCreated.addListener((tab) => {
+  incrementOpenTabs(tab);
 });
 
 // 탭 삭제 감지
-chrome.tabs.onRemoved.addListener(() => {
-  decrementOpenTabs();
+chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
+  console.log(tabToUrl[tabId]);
+  decrementOpenTabs(tabToUrl[tabId]);
 });
 
 // 클립보드 작업을 감지하기 위해 콘텐츠 스크립트에서 메시지를 받음
@@ -238,42 +244,45 @@ function updateActiveTab(tabId) {
   });
 }
 
-function incrementOpenTabs() {
+function incrementOpenTabs(tab) {
   console.log('탭 생성');
+  const domain = extractDomain(tab.pendingUrl);
+  console.log('domain:', domain);
   enqueueActionLogUpdate((done) => {
     chrome.storage.local.get(['openTabs', 'actionLog', 'installId'], (data) => {
       const newOpenTabs = (data.openTabs || 0) + 1;
-      console.log('newOpenTabs');
+      console.log('newOpenTabs:', newOpenTabs);
       const newLogEntry = {
         action: 'openTab',
         time: new Date().toISOString(),
         installId: data.installId,
-        domain: 'unknown'
+        domain: domain
       };
       const updatedActionLog = data.actionLog ? [...data.actionLog, newLogEntry] : [newLogEntry];
       chrome.storage.local.set({ openTabs: newOpenTabs, actionLog: updatedActionLog }, () => {
-        addToLocalLog('openTab', data.installId, 'unknown');
+        addToLocalLog('openTab', data.installId, domain);
         done();
       });
     });
   });
 }
 
-function decrementOpenTabs() {
+function decrementOpenTabs(tabUrl) {
   console.log('탭 삭제');
+  const domain = extractDomain(tabUrl);
   enqueueActionLogUpdate((done) => {
     chrome.storage.local.get(['openTabs', 'actionLog', 'installId'], (data) => {
       const newOpenTabs = Math.max(0, (data.openTabs || 0) - 1);
-      console.log('newOpenTabs');
+      console.log('newOpenTabs:', newOpenTabs);
       const newLogEntry = {
         action: 'closeTab',
         time: new Date().toISOString(),
         installId: data.installId,
-        domain: 'unknown'
+        domain: domain
       };
       const updatedActionLog = data.actionLog ? [...data.actionLog, newLogEntry] : [newLogEntry];
       chrome.storage.local.set({ openTabs: newOpenTabs, actionLog: updatedActionLog }, () => {
-        addToLocalLog('closeTab', data.installId, 'unknown');
+        addToLocalLog('closeTab', data.installId, domain);
         done();
       });
     });
@@ -372,4 +381,3 @@ chrome.runtime.onSuspend.addListener(() => {
     saveLogsToFirestore();
   }
 });
-
