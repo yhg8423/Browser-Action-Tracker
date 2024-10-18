@@ -18,11 +18,14 @@ const initialState = {
   historyNavigations: 0,
   zoomIns: 0,
   zoomOuts: 0,
+  enterKeyPresses: 0, // enter 키 액션 추가
+  wheelClicks: 0, // wheelclick 추가
   installId: null,
   actionLog: [] // 액션 로그 추가
 };
 
 let localActionLog = [];
+let isSaving = false; // 저장 중인지 확인하는 플래그
 
 // 상태 초기화
 chrome.runtime.onInstalled.addListener(() => {
@@ -95,6 +98,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     case 'incrementZoomOuts':
       incrementZoomOuts();
       break;
+    case 'incrementEnterKeyPresses': // enter 키 액션 추가
+      incrementEnterKeyPresses();
+      break;
+    case 'incrementWheelClicks': // wheelclick 추가
+      incrementWheelClicks();
+      break;
     case 'getStats':
       getStats(sendResponse);
       return true; // 비동기 응답을 위해 true 반환
@@ -103,10 +112,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 // 도메인 추출 함수
 function extractDomain(url) {
-  const domain = (new URL(url)).hostname;
-  const parts = domain.split('.').slice(-3);
-  if (parts[0] === 'www') parts.shift();
-  return parts.join('.');
+  try {
+    const domain = (new URL(url)).hostname;
+    const parts = domain.split('.').slice(-3);
+    if (parts[0] === 'www') parts.shift();
+    return parts.join('.');
+  } catch (error) {
+    return 'unknown';
+  }
 }
 
 // 각 액션에 대한 증가 함수
@@ -140,6 +153,8 @@ const incrementLinkClicks = () => incrementAction('linkClicks');
 const incrementHistoryNavigations = () => incrementAction('historyNavigations');
 const incrementZoomIns = () => incrementAction('zoomIns');
 const incrementZoomOuts = () => incrementAction('zoomOuts');
+const incrementEnterKeyPresses = () => incrementAction('enterKeyPresses'); // enter 키 액션 추가
+const incrementWheelClicks = () => incrementAction('wheelClicks'); // wheelclick 추가
 
 function incrementTabSwitches() {
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -164,6 +179,7 @@ function updateActiveTab(tabId) {
 }
 
 function incrementOpenTabs() {
+  console.log('탭 생성');
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     const domain = extractDomain(tabs[0].url);
     chrome.storage.local.get(['openTabs', 'actionLog', 'installId'], (data) => {
@@ -175,11 +191,13 @@ function incrementOpenTabs() {
 }
 
 function decrementOpenTabs() {
+  console.log('탭 삭제');
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     const domain = extractDomain(tabs[0].url);
     chrome.storage.local.get(['openTabs', 'actionLog', 'installId'], (data) => {
+      const newOpenTabs = Math.max(0, data.openTabs - 1); // 탭 수를 1 감소시키되 0 미만으로 내려가지 않도록 함
       const newLog = [...data.actionLog, { action: 'closeTab', time: new Date().toISOString(), installId: data.installId, domain }];
-      chrome.storage.local.set({ actionLog: newLog }); // 탭이 새로 열린 횟수를 체크하기 위해 감소하지 않음.
+      chrome.storage.local.set({ openTabs: newOpenTabs, actionLog: newLog }); 
       addToLocalLog('closeTab', data.installId, domain);
     });
   });
@@ -235,31 +253,45 @@ function addToLocalLog(action, installId, domain) {
   localActionLog.push({ action, time: new Date().toISOString(), installId, domain });
 
   // 로그가 100개 이상 쌓이면 Firestore에 저장
-  if (localActionLog.length >= 100) {
+  if (localActionLog.length >= 100 && !isSaving) {
     saveLogsToFirestore();
   }
 }
 
 // Firestore에 로그 저장
 function saveLogsToFirestore() {
-  if (localActionLog.length === 0) return;
+  if (localActionLog.length === 0 || isSaving) return;
+
+  isSaving = true;
+  const logsToSave = [...localActionLog]; // 현재 로그의 복사본 생성
+  localActionLog = []; // 로컬 로그 초기화
 
   const actionLogRef = collection(db, 'actionLogs');
-
+  
   addDoc(actionLogRef, {
-    logs: localActionLog,
+    logs: logsToSave,
     timestamp: serverTimestamp()
   })
   .then(() => {
     console.log("Logs written to Firestore");
-    localActionLog = []; // 로컬 로그 초기화
+    isSaving = false;
+    
+    // 저장 중에 새로 쌓인 로그가 있다면 다시 저장 시도
+    if (localActionLog.length >= 100) {
+      saveLogsToFirestore();
+    }
   })
   .catch((error) => {
     console.error("Error writing logs: ", error);
+    isSaving = false;
+    // 저장에 실패한 로그를 다시 localActionLog에 추가
+    localActionLog = [...logsToSave, ...localActionLog];
   });
 }
 
 // 브라우저 종료 시 로그 저장
 chrome.runtime.onSuspend.addListener(() => {
-  saveLogsToFirestore();
+  if (!isSaving && localActionLog.length > 0) {
+    saveLogsToFirestore();
+  }
 });

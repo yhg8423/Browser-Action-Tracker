@@ -1,16 +1,51 @@
 // 이벤트 리스너 설정
+let clickTimer = null;
+const doubleClickDelay = 300; // 더블클릭 간격 (밀리초)
+
+let isDragging = false;
+
+document.addEventListener('mousedown', () => {
+  isDragging = false;
+});
+
+document.addEventListener('mousemove', () => {
+  isDragging = true;
+});
+
 document.addEventListener('click', (event) => {
-  if (event.button === 0) {
-    if (event.target.tagName === 'A') {
-      console.log('link click');
-      sendMessage('incrementLinkClicks');
-    } else {
-      console.log('left click');
-      sendMessage('incrementLeftClicks');
-    }
-  } else if (event.detail === 2) {
-    console.log('double click');
+  if (isDragging) {
+    isDragging = false;
+    sendMessage('incrementDragActions');
+    return;
+  }
+  console.log(event.button);
+  if (clickTimer === null) {
+    clickTimer = setTimeout(() => {
+      // 단일 클릭 처리
+      if (event.button === 0) {
+        if (event.target.tagName === 'A') {
+          console.log('링크 클릭');
+          sendMessage('incrementLinkClicks');
+        } else {
+          console.log('왼쪽 클릭');
+          sendMessage('incrementLeftClicks');
+        }
+      }
+      clickTimer = null;
+    }, doubleClickDelay);
+  } else {
+    // 더블클릭 감지
+    clearTimeout(clickTimer);
+    clickTimer = null;
+    console.log('더블 클릭');
     sendMessage('incrementDoubleClicks');
+  }
+});
+
+document.addEventListener('auxclick', (event) => {
+  if (event.button === 1) {
+    console.log('휠 클릭');
+    sendMessage('incrementWheelClicks');
   }
 });
 
@@ -19,7 +54,14 @@ document.addEventListener('contextmenu', () => {
   sendMessage('incrementRightClicks');
 });
 
-document.addEventListener('scroll', () => sendMessage('incrementScrolls'));
+let scrollTimeout;
+document.addEventListener('scroll', () => {
+  clearTimeout(scrollTimeout);
+  scrollTimeout = setTimeout(() => {
+    sendMessage('incrementScrolls');
+  }, 300); // 300ms 후에 스크롤 이벤트 기록
+});
+
 document.addEventListener('copy', () => sendMessage('incrementCopyActions'));
 document.addEventListener('paste', () => sendMessage('incrementPasteActions'));
 document.addEventListener('cut', () => sendMessage('incrementCutActions'));
@@ -27,7 +69,15 @@ document.addEventListener('cut', () => sendMessage('incrementCutActions'));
 document.addEventListener('dragstart', () => sendMessage('incrementDragActions'));
 document.addEventListener('drop', () => sendMessage('incrementDropActions'));
 
-document.addEventListener('keydown', () => sendMessage('incrementKeyboardInputs'));
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    console.log('엔터 키 누름');
+    sendMessage('incrementEnterKeyPresses');
+  }
+  else if (!event.ctrlKey && !event.metaKey) {
+    sendMessage('incrementKeyboardInputs');
+  }
+});
 
 document.addEventListener('submit', () => sendMessage('incrementFormSubmits'));
 
@@ -42,7 +92,10 @@ document.addEventListener('submit', () => sendMessage('incrementFormSubmits'));
 //   }
 // });
 
-window.addEventListener('popstate', () => sendMessage('incrementHistoryNavigations'));
+window.addEventListener('popstate', () => {
+  console.log('history navigation');
+  sendMessage('incrementHistoryNavigations');
+});
 
 window.addEventListener('wheel', (event) => {
   if (event.ctrlKey) {
@@ -58,11 +111,11 @@ function sendMessage(action) {
   try {
     chrome.runtime.sendMessage({ action: action }, response => {
       if (chrome.runtime.lastError) {
-        console.error('메시지 전송 오류:', chrome.runtime.lastError);
+        // console.error('메시지 전송 오류:', chrome.runtime.lastError);
       }
     });
   } catch (error) {
-    console.error('메시지 전송 중 예외 발생:', error);
+    // console.error('메시지 전송 중 예외 발생:', error);
   }
 }
 
