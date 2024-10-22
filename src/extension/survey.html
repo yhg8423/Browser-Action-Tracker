@@ -27,34 +27,39 @@
         }
         button {
             padding: 10px;
-            background-color: #4CAF50;
+            background-color: #000B0B;
             color: white;
             border: none;
             cursor: pointer;
         }
         button:hover {
-            background-color: #45a049;
+            background-color: #000000;
+            color: white;
         }
     </style>
 </head>
 <body>
-    <h1>사용자 설문 조사</h1>
+    <h1>Companoid AI 사용자 리서치 설문 조사</h1>
+    <p>저희의 사용자 리서치에 참여해주셔서 감사합니다. 아래 설문을 작성해주시면, 저희의 사용자 리서치에 참여하게 됩니다.</p>
+    <p>참여해주신 분들은 향후 Companoid AI의 프로덕트 출시 후 Contributor 명단에 등재됩니다.</p>
+    <p>* 필수 항목입니다.</p>
+    
     <form id="surveyForm">
-        <label for="age">연령:</label>
+        <label for="age">연령 * :</label>
         <input type="number" id="age" name="age" required>
 
-        <label for="nickname">닉네임 (Contributor 명단에 등재됩니다.):</label>
+        <label for="nickname">등재 닉네임 * (Contributor 명단에 등재됩니다.):</label>
         <input type="text" id="nickname" name="nickname" required>
 
-        <label for="browserUsage">하루 평균 브라우저 사용량 (시간):</label>
+        <label for="browserUsage">하루 평균 브라우저 사용량 (시간) * :</label>
         <input type="number" id="browserUsage" name="browserUsage" step="0.5" required>
 
         <label for="occupation">직업:</label>
-        <input type="text" id="occupation" name="occupation" required>
+        <input type="text" id="occupation" name="occupation">
         
         <label for="consent">
             <input type="checkbox" id="consent" name="consent" required>
-            개인정보 수집 및 이용에 동의합니다. 
+            개인정보 수집 및 이용에 동의합니다.*
             <a href="privacy_policy.html" target="_blank">개인정보처리방침 보기</a>
         </label>
 
