@@ -367,6 +367,7 @@ function saveLogsToFirestore() {
   
   addDoc(actionLogRef, {
     logs: logsToSave,
+    installId: syncData.installId,
     timestamp: serverTimestamp()
   })
   .then(() => {
