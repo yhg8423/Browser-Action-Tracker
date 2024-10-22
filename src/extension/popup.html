@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -31,18 +31,33 @@
         button:hover {
             background-color: #45a049;
         }
+        #surveyPrompt {
+            text-align: center;
+        }
     </style>
 </head>
 <body>
-    <h1>브라우저 액션 트래커</h1>
-    <p id="clicks">클릭: 0</p>
-    <p id="scrolls">스크롤: 0</p>
-    <p id="tabSwitches">탭 전환: 0</p>
-    <p id="openTabs">열린 탭: 0</p>
-    <p id="copyActions">복사: 0</p>
-    <p id="pasteActions">붙여넣기: 0</p>
-    <p id="cutActions">잘라내기: 0</p>
-    <button id="resetButton">통계 초기화</button>
+    <div id="surveyPrompt" style="display: none;">
+        <h1>설문 조사 필요</h1>
+        <p>통계를 보기 전에 간단한 설문 조사를 완료해 주세요.</p>
+        <button id="goToSurvey">설문 조사 하기</button>
+    </div>
+
+    <div id="statsContent" style="display: none;">
+        <h1>브라우저 액션 트래커</h1>
+        <p id="leftClicks">왼쪽 클릭: 0</p>
+        <p id="rightClicks">오른쪽 클릭: 0</p>
+        <p id="doubleClicks">더블 클릭: 0</p>
+        <p id="dragActions">드래그: 0</p>
+        <p id="keyboardInputs">키보드 입력: 0</p>
+        <p id="scrolls">스크롤: 0</p>
+        <p id="tabSwitches">탭 전환: 0</p>
+        <p id="openTabs">열린 탭: 0</p>
+        <p id="copyActions">복사: 0</p>
+        <p id="pasteActions">붙여넣기: 0</p>
+        <p id="cutActions">잘라내기: 0</p>
+        <button id="resetButton">통계 초기화</button>
+    </div>
 
     <script src="popup.js"></script>
 </body>

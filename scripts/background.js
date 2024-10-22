@@ -49,9 +49,16 @@ function processActionLogQueue() {
   });
 }
 
-// 상태 초기화
-chrome.runtime.onInstalled.addListener(() => {
+// 상태 초기
+chrome.runtime.onInstalled.addListener((details) => {
   initializeInstallId();
+  if (details.reason === 'install') {
+    chrome.storage.local.get('surveyCompleted', (data) => {
+      if (!data.surveyCompleted) {
+        chrome.tabs.create({ url: 'src/extension/survey.html' });
+      }
+    });
+  }
   chrome.storage.local.set(initialState);
   updateOpenTabs(); // 초기 열린 탭 수 설정
 });
@@ -135,6 +142,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     case 'getStats':
       getStats(sendResponse);
       return true; // 비동기 응답을 위해 true 반환
+    case 'saveSurveyData':
+      saveSurveyData(request.data);
+      break;
   }
 });
 
@@ -163,6 +173,8 @@ function safeUpdateActionLog(actionType, domain) {
       const updatedActionLog = data.actionLog ? [...data.actionLog, newLogEntry] : [newLogEntry];
       const newData = {};
       newData[actionType] = (data[actionType] || 0) + 1;
+      console.log("actionType");
+      console.log(data[actionType], newData[actionType]);      
       newData.actionLog = updatedActionLog;
       chrome.storage.local.set(newData, () => {
         addToLocalLog(actionType, data.installId, domain);
@@ -381,3 +393,23 @@ chrome.runtime.onSuspend.addListener(() => {
     saveLogsToFirestore();
   }
 });
+
+// 설문 조사 데이터 저장
+function saveSurveyData(data) {
+  const surveyDataRef = collection(db, 'surveyData');
+  chrome.storage.local.get('installId', (chromeData) => {
+    addDoc(surveyDataRef, {
+      ...data,
+      installId: chromeData.installId,
+      timestamp: serverTimestamp()
+    })
+    .then(() => {
+      console.log("설문 데이터가 Firestore에 저장되었습니다");
+      chrome.storage.local.set({ surveyCompleted: true });
+    })
+    .catch((error) => {
+      console.error("설문 데이터 저장 중 오류 발생: ", error);
+    });
+  });
+}
+
