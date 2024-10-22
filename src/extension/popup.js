@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    chrome.storage.local.get('surveyCompleted', (data) => {
+    chrome.storage.sync.get('surveyCompleted', (data) => {
         if (data.surveyCompleted) {
             showStats();
         } else {
