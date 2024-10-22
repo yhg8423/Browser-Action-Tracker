@@ -53,7 +53,7 @@ function processActionLogQueue() {
 chrome.runtime.onInstalled.addListener((details) => {
   initializeInstallId();
   if (details.reason === 'install') {
-    chrome.storage.local.get('surveyCompleted', (data) => {
+    chrome.storage.sync.get('surveyCompleted', (data) => {
       if (!data.surveyCompleted) {
         chrome.tabs.create({ url: 'src/extension/survey.html' });
       }
@@ -163,22 +163,22 @@ function extractDomain(url) {
 // 액션 로그 안전하게 업데이트하는 함수
 function safeUpdateActionLog(actionType, domain) {
   enqueueActionLogUpdate((done) => {
-    chrome.storage.local.get([actionType, 'actionLog', 'installId'], (data) => {
-      const newLogEntry = {
-        action: actionType,
-        time: new Date().toISOString(),
-        installId: data.installId,
-        domain: domain
-      };
-      const updatedActionLog = data.actionLog ? [...data.actionLog, newLogEntry] : [newLogEntry];
-      const newData = {};
-      newData[actionType] = (data[actionType] || 0) + 1;
-      console.log("actionType");
-      console.log(data[actionType], newData[actionType]);      
-      newData.actionLog = updatedActionLog;
-      chrome.storage.local.set(newData, () => {
-        addToLocalLog(actionType, data.installId, domain);
-        done();
+    chrome.storage.sync.get('installId', (syncData) => {
+      chrome.storage.local.get([actionType, 'actionLog'], (localData) => {
+        const newLogEntry = {
+          action: actionType,
+          time: new Date().toISOString(),
+          installId: syncData.installId,
+          domain: domain
+        };
+        const updatedActionLog = localData.actionLog ? [...localData.actionLog, newLogEntry] : [newLogEntry];
+        const newData = {};
+        newData[actionType] = (localData[actionType] || 0) + 1;
+        newData.actionLog = updatedActionLog;
+        chrome.storage.local.set(newData, () => {
+          addToLocalLog(actionType, syncData.installId, domain);
+          done();
+        });
       });
     });
   });
@@ -320,15 +320,14 @@ function generateInstallId() {
 }
 
 function initializeInstallId() {
-  chrome.storage.local.get('installId', (data) => {
+  chrome.storage.sync.get('installId', (data) => {
     if (!data.installId) {
       const newInstallId = generateInstallId();
-      chrome.storage.local.set({ installId: newInstallId });
-    }
-    else {
-      console.log("InstallID");
-      console.log(data.installId);
-      chrome.storage.local.set({ installId: data.installId });
+      chrome.storage.sync.set({ installId: newInstallId }, () => {
+        console.log("새로운 InstallID 생성 및 저장:", newInstallId);
+      });
+    } else {
+      console.log("기존 InstallID 사용:", data.installId);
     }
   });
 }
@@ -397,19 +396,18 @@ chrome.runtime.onSuspend.addListener(() => {
 // 설문 조사 데이터 저장
 function saveSurveyData(data) {
   const surveyDataRef = collection(db, 'surveyData');
-  chrome.storage.local.get('installId', (chromeData) => {
+  chrome.storage.sync.get('installId', (syncData) => {
     addDoc(surveyDataRef, {
       ...data,
-      installId: chromeData.installId,
+      installId: syncData.installId,
       timestamp: serverTimestamp()
     })
     .then(() => {
       console.log("설문 데이터가 Firestore에 저장되었습니다");
-      chrome.storage.local.set({ surveyCompleted: true });
+      chrome.storage.sync.set({ surveyCompleted: true });
     })
     .catch((error) => {
       console.error("설문 데이터 저장 중 오류 발생: ", error);
     });
   });
 }
-
